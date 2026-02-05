@@ -131,12 +131,26 @@ public partial class MainWindow : Window
                 {
                     // Try to find GPU performance counters
                     // Common GPU counter categories: "GPU Engine", "GPU Adapter Memory", etc.
+                    // Note: Counter names vary by GPU manufacturer (NVIDIA, AMD, Intel) and driver version
                     var category = new PerformanceCounterCategory("GPU Engine");
                     var instanceNames = category.GetInstanceNames();
                     if (instanceNames.Length > 0)
                     {
-                        // Use the first GPU instance found
-                        _gpuCounter = new PerformanceCounter("GPU Engine", "Utilization Percentage", instanceNames[0]);
+                        // Try different known counter names for GPU utilization
+                        string[] counterNames = { "Utilization Percentage", "Running Time", "GPU Usage" };
+                        foreach (var counterName in counterNames)
+                        {
+                            try
+                            {
+                                _gpuCounter = new PerformanceCounter("GPU Engine", counterName, instanceNames[0]);
+                                _gpuCounter.NextValue(); // Test read
+                                break; // Success - use this counter
+                            }
+                            catch
+                            {
+                                _gpuCounter = null; // Try next counter name
+                            }
+                        }
                     }
                 }
                 catch
@@ -556,7 +570,7 @@ public partial class MainWindow : Window
                     var output = process.StandardOutput.ReadToEnd();
                     
                     string errorMessage = "PDF generation failed.";
-                    if (error.Contains("No module named") || error.Contains("reportlab"))
+                    if (error.Contains("No module named") && error.Contains("reportlab"))
                     {
                         errorMessage = "PDF generation failed: reportlab module not found.\n\n" +
                                      "Please install Python dependencies:\n" +

@@ -5,9 +5,10 @@ A .NET WPF System Monitor application that displays real-time system performance
 ## Features
 
 ### Real-time Monitoring
-- **CPU Usage**: Displayed with a speedometer-style needle gauge (0-100%)
+- **CPU Usage**: Displayed with a speedometer-style needle gauge (0-100%) with 2 decimal precision
 - **RAM Usage**: Line chart showing memory usage over time
-- **Disk Usage**: Histogram showing used and free space for all drives
+- **GPU Usage**: Line chart showing GPU utilization over time (when available)
+- **Disk Usage**: Histogram showing used and free space for all drives (updated every minute)
 - **Network Speed**: Real-time download and upload speeds
 - **System Information**: OS version, computer name, processor info, and uptime
 

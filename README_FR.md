@@ -5,9 +5,10 @@ Un moniteur système .NET WPF qui affiche les métriques de performance en temps
 ## Caractéristiques
 
 ### Surveillance en Temps Réel
-- **Utilisation du CPU** : Affichée avec une jauge à aiguille de type compteur de vitesse (0-100%)
+- **Utilisation du CPU** : Affichée avec une jauge à aiguille de type compteur de vitesse (0-100%) avec une précision de 2 décimales
 - **Utilisation de la RAM** : Graphique linéaire montrant l'utilisation de la mémoire dans le temps
-- **Utilisation du Disque (ROM)** : Histogramme montrant l'espace utilisé et libre pour tous les lecteurs
+- **Utilisation du GPU** : Graphique linéaire montrant l'utilisation du GPU dans le temps (lorsque disponible)
+- **Utilisation du Disque (ROM)** : Histogramme montrant l'espace utilisé et libre pour tous les lecteurs (mis à jour toutes les minutes)
 - **Vitesse Réseau** : Vitesses de téléchargement et d'envoi en temps réel
 - **Informations Système** : Version du système d'exploitation, nom de l'ordinateur, informations sur le processeur et temps de fonctionnement
 
