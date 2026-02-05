@@ -24,13 +24,18 @@ public partial class MainWindow : Window
     private DispatcherTimer _updateTimer = null!;
     private PerformanceCounter? _cpuCounter;
     private PerformanceCounter? _ramCounter;
+    private PerformanceCounter? _gpuCounter;
     private List<double> _ramHistory = new List<double>();
     private List<string> _ramLabels = new List<string>();
+    private List<double> _gpuHistory = new List<double>();
     private const int MaxHistoryPoints = 30;
     
     private long _previousBytesReceived = 0;
     private long _previousBytesSent = 0;
     private DateTime _lastNetworkCheck = DateTime.Now;
+    
+    private DateTime _lastDiskUpdate = DateTime.MinValue;
+    private const int DiskUpdateIntervalSeconds = 60;
     
     private bool _isRecording = false;
     private string _recordingDataFile = "";
@@ -39,6 +44,8 @@ public partial class MainWindow : Window
     public List<string> RamLabels { get; set; } = null!;
     public SeriesCollection DiskSeries { get; set; } = null!;
     public List<string> DiskLabels { get; set; } = null!;
+    public SeriesCollection GpuSeries { get; set; } = null!;
+    public List<string> GpuLabels { get; set; } = null!;
 
     public MainWindow()
     {
@@ -92,6 +99,22 @@ public partial class MainWindow : Window
         };
         
         DiskLabels = new List<string>();
+        
+        // Initialize GPU chart
+        GpuSeries = new SeriesCollection
+        {
+            new LineSeries
+            {
+                Title = "GPU %",
+                Values = new ChartValues<double>(),
+                Fill = new SolidColorBrush(Color.FromArgb(50, 106, 174, 213)),
+                Stroke = new SolidColorBrush(Color.FromRgb(106, 174, 213)),
+                StrokeThickness = 2,
+                PointGeometry = null
+            }
+        };
+        
+        GpuLabels = new List<string>();
     }
 
     private void InitializePerformanceCounters()
@@ -103,9 +126,32 @@ public partial class MainWindow : Window
                 _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
                 _ramCounter = new PerformanceCounter("Memory", "% Committed Bytes In Use");
                 
+                // Try to initialize GPU counter - may not be available on all systems
+                try
+                {
+                    // Try to find GPU performance counters
+                    // Common GPU counter categories: "GPU Engine", "GPU Adapter Memory", etc.
+                    var category = new PerformanceCounterCategory("GPU Engine");
+                    var instanceNames = category.GetInstanceNames();
+                    if (instanceNames.Length > 0)
+                    {
+                        // Use the first GPU instance found
+                        _gpuCounter = new PerformanceCounter("GPU Engine", "Utilization Percentage", instanceNames[0]);
+                    }
+                }
+                catch
+                {
+                    // GPU counters not available - will use fallback
+                    Debug.WriteLine("GPU performance counters not available");
+                }
+                
                 // Initial read to initialize counters
                 _cpuCounter.NextValue();
                 _ramCounter.NextValue();
+                if (_gpuCounter != null)
+                {
+                    _gpuCounter.NextValue();
+                }
             }
         }
         catch (Exception ex)
@@ -124,6 +170,7 @@ public partial class MainWindow : Window
             ProcessorText.Text = $"Processor: {Environment.ProcessorCount} cores";
             
             UpdateDiskInfo();
+            _lastDiskUpdate = DateTime.Now;
         }
         catch (Exception ex)
         {
@@ -135,7 +182,16 @@ public partial class MainWindow : Window
     {
         UpdateCpuUsage();
         UpdateRamUsage();
-        UpdateDiskInfo();
+        UpdateGpuUsage();
+        
+        // Only update disk info every minute
+        var now = DateTime.Now;
+        if ((now - _lastDiskUpdate).TotalSeconds >= DiskUpdateIntervalSeconds)
+        {
+            UpdateDiskInfo();
+            _lastDiskUpdate = now;
+        }
+        
         UpdateNetworkSpeed();
         UpdateUptime();
         
@@ -162,7 +218,7 @@ public partial class MainWindow : Window
             }
             
             CpuGauge.Value = cpuUsage;
-            CpuPercentText.Text = $"{cpuUsage:F1}%";
+            CpuPercentText.Text = $"{cpuUsage:F2}%";
         }
         catch (Exception ex)
         {
@@ -243,6 +299,45 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             Debug.WriteLine($"Error updating RAM: {ex.Message}");
+        }
+    }
+
+    private void UpdateGpuUsage()
+    {
+        try
+        {
+            double gpuUsage = 0;
+            
+            if (_gpuCounter != null && OperatingSystem.IsWindows())
+            {
+                gpuUsage = _gpuCounter.NextValue();
+            }
+            else
+            {
+                // Fallback: GPU data not available
+                gpuUsage = 0;
+            }
+            
+            // Update chart
+            _gpuHistory.Add(gpuUsage);
+            if (_gpuHistory.Count > MaxHistoryPoints)
+            {
+                _gpuHistory.RemoveAt(0);
+            }
+            
+            var series = GpuSeries[0] as LineSeries;
+            if (series != null)
+            {
+                series.Values.Clear();
+                foreach (var value in _gpuHistory)
+                {
+                    series.Values.Add(value);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error updating GPU: {ex.Message}");
         }
     }
 
@@ -458,7 +553,24 @@ public partial class MainWindow : Window
                 else
                 {
                     var error = process.StandardError.ReadToEnd();
-                    MessageBox.Show($"PDF generation failed.\n\nError: {error}", 
+                    var output = process.StandardOutput.ReadToEnd();
+                    
+                    string errorMessage = "PDF generation failed.";
+                    if (error.Contains("No module named") || error.Contains("reportlab"))
+                    {
+                        errorMessage = "PDF generation failed: reportlab module not found.\n\n" +
+                                     "Please install Python dependencies:\n" +
+                                     "1. Open a command prompt\n" +
+                                     "2. Navigate to the SystemMonitor folder\n" +
+                                     "3. Run: pip install -r requirements.txt\n\n" +
+                                     $"Error: {error}";
+                    }
+                    else
+                    {
+                        errorMessage = $"PDF generation failed.\n\nError: {error}\n\nOutput: {output}";
+                    }
+                    
+                    MessageBox.Show(errorMessage, 
                                   "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     RecordingStatusText.Text = "PDF generation failed";
                     RecordingStatusText.Foreground = new SolidColorBrush(Color.FromRgb(244, 135, 113));
@@ -494,6 +606,7 @@ public partial class MainWindow : Window
         _updateTimer?.Stop();
         _cpuCounter?.Dispose();
         _ramCounter?.Dispose();
+        _gpuCounter?.Dispose();
         base.OnClosed(e);
     }
 }
