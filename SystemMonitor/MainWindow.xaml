@@ -52,7 +52,6 @@
                                GaugeBackground="#3F3F3F"
                                Foreground="White"
                                FontSize="40" FontWeight="Bold"
-                               HighFontSize="0"
                                Margin="10"/>
                     
                     <TextBlock Grid.Row="2" x:Name="CpuPercentText" Text="0%" 
