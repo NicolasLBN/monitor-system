@@ -136,6 +136,8 @@ public partial class MainWindow : Window
                     var instanceNames = category.GetInstanceNames();
                     if (instanceNames.Length > 0)
                     {
+                        // Note: On systems with multiple GPUs, this uses the first instance found.
+                        // For production use, consider implementing GPU selection logic.
                         // Try different known counter names for GPU utilization
                         string[] counterNames = { "Utilization Percentage", "Running Time", "GPU Usage" };
                         foreach (var counterName in counterNames)
@@ -325,6 +327,8 @@ public partial class MainWindow : Window
             if (_gpuCounter != null && OperatingSystem.IsWindows())
             {
                 gpuUsage = _gpuCounter.NextValue();
+                // Ensure value is in 0-100 range (some counters may return values in different scales)
+                gpuUsage = Math.Max(0, Math.Min(100, gpuUsage));
             }
             else
             {
