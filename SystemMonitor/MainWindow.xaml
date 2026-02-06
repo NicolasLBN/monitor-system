@@ -115,7 +115,7 @@
                         </lvc:CartesianChart.AxisY>
                     </lvc:CartesianChart>
                     
-                    <TextBlock Grid.Row="2" Text="GPU Utilization" 
+                    <TextBlock Grid.Row="2" x:Name="GpuUtilizationText" Text="GPU Utilization: 0%" 
                                FontSize="14" Foreground="White" HorizontalAlignment="Center"/>
                 </Grid>
             </Border>
@@ -181,6 +181,12 @@
                                 <TextBlock x:Name="ComputerNameText" Text="Computer: Loading..." 
                                            FontSize="12" Foreground="White" Margin="0,2"/>
                                 <TextBlock x:Name="ProcessorText" Text="Processor: Loading..." 
+                                           FontSize="12" Foreground="White" Margin="0,2" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="GpuNameText" Text="GPU: Loading..." 
+                                           FontSize="12" Foreground="White" Margin="0,2" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="RamTypeText" Text="RAM: Loading..." 
+                                           FontSize="12" Foreground="White" Margin="0,2" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="DiskTypeText" Text="Disk: Loading..." 
                                            FontSize="12" Foreground="White" Margin="0,2" TextWrapping="Wrap"/>
                                 <TextBlock x:Name="UptimeText" Text="Uptime: Loading..." 
                                            FontSize="12" Foreground="White" Margin="0,2"/>

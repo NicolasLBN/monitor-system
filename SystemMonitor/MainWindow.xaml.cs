@@ -10,6 +10,7 @@ using System.Windows.Navigation;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Threading;
+using System.Management;
 using LiveCharts;
 using LiveCharts.Wpf;
 using LiveCharts.Defaults;
@@ -54,6 +55,9 @@ public partial class MainWindow : Window
         InitializeCharts();
         InitializePerformanceCounters();
         InitializeSystemInfo();
+        
+        // Format CPU gauge to show 2 decimal places
+        CpuGauge.LabelFormatter = value => value.ToString("F2");
         
         _updateTimer = new DispatcherTimer();
         _updateTimer.Interval = TimeSpan.FromSeconds(1);
@@ -291,23 +295,28 @@ public partial class MainWindow : Window
             
             // Update chart
             _ramHistory.Add(ramPercent);
-            if (_ramHistory.Count > MaxHistoryPoints)
-            {
-                _ramHistory.RemoveAt(0);
-                _ramLabels.RemoveAt(0);
-            }
-            
-            _ramLabels.Add(DateTime.Now.ToString("HH:mm:ss"));
+            var ramLabel = DateTime.Now.ToString("HH:mm:ss");
+            _ramLabels.Add(ramLabel);
             
             var series = RamSeries[0] as LineSeries;
             if (series != null)
             {
-                series.Values.Clear();
-                foreach (var value in _ramHistory)
+                series.Values.Add(ramPercent);
+                
+                if (series.Values.Count > MaxHistoryPoints)
                 {
-                    series.Values.Add(value);
+                    series.Values.RemoveAt(0);
+                    _ramHistory.RemoveAt(0);
                 }
             }
+            
+            if (_ramLabels.Count > MaxHistoryPoints)
+            {
+                _ramLabels.RemoveAt(0);
+            }
+            
+            RamLabels.Clear();
+            RamLabels.AddRange(_ramLabels);
             
             RamUsedText.Text = $"Used: {usedMemory / (1024.0 * 1024 * 1024):F2} GB";
             RamTotalText.Text = $"Total: {totalMemory / (1024.0 * 1024 * 1024):F2} GB";
@@ -338,18 +347,16 @@ public partial class MainWindow : Window
             
             // Update chart
             _gpuHistory.Add(gpuUsage);
-            if (_gpuHistory.Count > MaxHistoryPoints)
-            {
-                _gpuHistory.RemoveAt(0);
-            }
             
             var series = GpuSeries[0] as LineSeries;
             if (series != null)
             {
-                series.Values.Clear();
-                foreach (var value in _gpuHistory)
+                series.Values.Add(gpuUsage);
+                
+                if (series.Values.Count > MaxHistoryPoints)
                 {
-                    series.Values.Add(value);
+                    series.Values.RemoveAt(0);
+                    _gpuHistory.RemoveAt(0);
                 }
             }
         }
@@ -479,7 +486,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void StopRecordButton_Click(object sender, RoutedEventArgs e)
+    private async void StopRecordButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -488,8 +495,8 @@ public partial class MainWindow : Window
             StopRecordButton.IsEnabled = false;
             RecordingStatusText.Text = "Generating PDF...";
             
-            // Call Python script to generate PDF
-            GeneratePdfReport();
+            // Call Python script to generate PDF asynchronously
+            await GeneratePdfReportAsync();
         }
         catch (Exception ex)
         {
@@ -522,7 +529,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void GeneratePdfReport()
+    private async Task GeneratePdfReportAsync()
     {
         try
         {
@@ -553,7 +560,7 @@ public partial class MainWindow : Window
             var process = Process.Start(startInfo);
             if (process != null)
             {
-                process.WaitForExit(30000); // Wait up to 30 seconds
+                await Task.Run(() => process.WaitForExit(30000)); // Wait asynchronously
                 
                 if (File.Exists(outputPdf))
                 {
@@ -570,8 +577,8 @@ public partial class MainWindow : Window
                 }
                 else
                 {
-                    var error = process.StandardError.ReadToEnd();
-                    var output = process.StandardOutput.ReadToEnd();
+                    var error = await process.StandardError.ReadToEndAsync();
+                    var output = await process.StandardOutput.ReadToEndAsync();
                     
                     string errorMessage = "PDF generation failed.";
                     if (error.Contains("No module named") && error.Contains("reportlab"))
@@ -603,12 +610,9 @@ public partial class MainWindow : Window
             }
             catch { }
             
-            Dispatcher.BeginInvoke(() =>
-            {
-                System.Threading.Thread.Sleep(3000);
-                RecordingStatusText.Text = "Ready to record";
-                RecordingStatusText.Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 128));
-            });
+            await Task.Delay(3000);
+            RecordingStatusText.Text = "Ready to record";
+            RecordingStatusText.Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 128));
         }
         catch (Exception ex)
         {
