@@ -266,11 +266,21 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         InitializeCharts();
 
         // Initialize commands
-        StartRecordCommand = new RelayCommand(_ => StartRecordingAsync(), _ => IsStartRecordEnabled);
-        StopRecordCommand = new RelayCommand(_ => StopRecordingAsync(), _ => IsStopRecordEnabled);
+        StartRecordCommand = new RelayCommand(async _ => await StartRecordingAsync(), _ => IsStartRecordEnabled);
+        StopRecordCommand = new RelayCommand(async _ => await StopRecordingAsync(), _ => IsStopRecordEnabled);
 
         // Initialize system info
-        _ = InitializeSystemInfoAsync();
+        Task.Run(async () =>
+        {
+            try
+            {
+                await InitializeSystemInfoAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in InitializeSystemInfoAsync");
+            }
+        });
 
         // Start update timer
         _updateTimer = new DispatcherTimer
@@ -529,7 +539,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async void StartRecordingAsync()
+    private async Task StartRecordingAsync()
     {
         try
         {
@@ -553,7 +563,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async void StopRecordingAsync()
+    private async Task StopRecordingAsync()
     {
         try
         {

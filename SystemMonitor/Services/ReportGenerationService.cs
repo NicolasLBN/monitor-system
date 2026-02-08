@@ -54,7 +54,14 @@ public class ReportGenerationService : IReportGenerationService
             
             if (process != null)
             {
+                // Read output streams asynchronously to prevent deadlocks
+                var outputTask = process.StandardOutput.ReadToEndAsync();
+                var errorTask = process.StandardError.ReadToEndAsync();
+                
                 await process.WaitForExitAsync();
+                
+                var output = await outputTask;
+                var error = await errorTask;
 
                 if (File.Exists(outputPdfPath))
                 {
@@ -63,9 +70,6 @@ public class ReportGenerationService : IReportGenerationService
                 }
                 else
                 {
-                    var error = await process.StandardError.ReadToEndAsync();
-                    var output = await process.StandardOutput.ReadToEndAsync();
-                    
                     _logger.LogError($"PDF generation failed. Error: {error}, Output: {output}");
                     return false;
                 }

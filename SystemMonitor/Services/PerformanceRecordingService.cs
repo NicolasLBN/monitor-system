@@ -80,10 +80,8 @@ public class PerformanceRecordingService : IPerformanceRecordingService
     /// Stops recording and returns the data file path
     /// </summary>
     /// <returns>Path to the recorded data file</returns>
-    public async Task<string> StopRecordingAsync()
+    public Task<string> StopRecordingAsync()
     {
-        await Task.CompletedTask; // Make method async for consistency
-
         try
         {
             _isRecording = false;
@@ -92,7 +90,7 @@ public class PerformanceRecordingService : IPerformanceRecordingService
             var filePath = _recordingDataFile;
             _recordingDataFile = string.Empty;
 
-            return filePath;
+            return Task.FromResult(filePath);
         }
         catch (Exception ex)
         {
